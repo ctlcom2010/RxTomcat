@@ -134,7 +134,8 @@ public class Poller implements Runnable {
             if (key.isValid()) key.cancel();
             
             socket.ioChannel().close();
-            
+            // 释放一个连接名额
+            endpoint.countDownConnection();
         } catch (Throwable t) {
             t.printStackTrace();
         }

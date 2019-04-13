@@ -1,3 +1,6 @@
+rxtomcat-v1.1
+ + 使用信号量控制总连接数
+
 rxtomcat-v1.0
  + 实现 NIO 模型的核心处理流程
  + 实现 Digester 解析 xml 的功能

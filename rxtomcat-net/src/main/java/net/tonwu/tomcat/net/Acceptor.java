@@ -20,12 +20,13 @@ public class Acceptor implements Runnable {
         endpoint = nioEndpoint;
     }
     
-    
-    
     @Override
     public void run() {
         while (endpoint.isRunning()) {
             try {
+                // 申请一个连接名额
+                endpoint.countUpOrAwaitConnection();
+                
                 SocketChannel socket = endpoint.accept();
 
                 try {
@@ -42,6 +43,7 @@ public class Acceptor implements Runnable {
                     log.info("Accept and Register: {}", socket.getRemoteAddress());
                 } catch (Throwable t) {
                     try {
+                        endpoint.countDownConnection();
                         socket.socket().close();
                         socket.close();
                     } catch (IOException iox) {

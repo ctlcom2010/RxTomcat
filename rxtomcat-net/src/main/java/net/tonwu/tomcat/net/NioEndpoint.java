@@ -6,6 +6,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,12 +20,15 @@ public class NioEndpoint {
 
     private ServerSocketChannel serverSock;
     private int port = 10393;
-    private int soTimeout = 15000;
+    private int soTimeout = 150000;
 
     private ExecutorService executor;
     private int maxThreads = 5;
     private boolean daemon = false;
 
+    private Semaphore connectionLimit;
+    private int maxConnections = 2;
+    
     private Poller poller;
     private Acceptor acceptor;
     private Handler handler;
@@ -34,6 +38,8 @@ public class NioEndpoint {
         serverSock.socket().bind(new InetSocketAddress(port));
         serverSock.configureBlocking(true);
         serverSock.socket().setSoTimeout(soTimeout);
+        
+        connectionLimit = new Semaphore(maxConnections);
     }
     
     public void setProcessorClassName(String processorClassName) {
@@ -69,6 +75,18 @@ public class NioEndpoint {
         log.info("NioEndpoint Started, Port: {}", port);
     }
 
+    public void releaseConnectionLatch() {
+        connectionLimit.release(maxConnections);
+    }
+    public void countUpOrAwaitConnection() throws InterruptedException {
+        if (maxConnections==-1) return;
+        connectionLimit.acquire();
+    }
+    public void countDownConnection() {
+        if (maxConnections==-1) return;
+        connectionLimit.release();
+    }
+    
     public void stop() {
         running = false;
         poller.destroy();
@@ -78,21 +96,6 @@ public class NioEndpoint {
     public SocketChannel accept() throws Exception {
         return serverSock.accept();
     }
-
-//    public Handler newHandler() {
-//        if (handlerClassName != null) {
-//            try {
-//                Class<?> clazz = Class.forName(handlerClassName);
-//                return (Handler) clazz.newInstance();
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//        }
-//        return null;
-//    }
-//    public void setHandler(String handler) {
-//        this.handlerClassName = handler;
-//    }
 
     public boolean isRunning() {
         return running;

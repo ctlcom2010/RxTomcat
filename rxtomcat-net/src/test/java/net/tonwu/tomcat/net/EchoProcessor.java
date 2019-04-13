@@ -56,7 +56,7 @@ public class EchoProcessor implements Processor {
                 } else if (n == 0) {
                     // 继续读取
                     return SocketState.LONG;
-                }
+                } else {}// socket close
             } else if (key.isWritable()) {
                 ByteBuffer wbuf = ioChannel.writeBuf();
                 wbuf.clear();
