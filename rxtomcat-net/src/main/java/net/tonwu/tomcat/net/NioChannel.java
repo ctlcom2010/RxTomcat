@@ -16,10 +16,8 @@ public class NioChannel {
 
     private long lastAccess = -1;
 
-    @SuppressWarnings("unused")
-    private CountDownLatch readLatch;
-    @SuppressWarnings("unused")
-    private CountDownLatch writeLatch;
+    public CountDownLatch writeLatch;
+    public CountDownLatch readLatch;
 
     public NioChannel(SocketChannel socket) {
         this.socket = socket;

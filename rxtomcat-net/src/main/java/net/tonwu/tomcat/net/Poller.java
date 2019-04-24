@@ -67,6 +67,17 @@ public class Poller implements Runnable {
                     int interestOps = key.interestOps() & (~key.readyOps());
                     key.interestOps(interestOps);
                     channel.interestOps(interestOps);
+                    
+                    if (channel.writeLatch != null) {
+                    	channel.writeLatch.countDown();
+                    	continue;
+                    }
+                    
+                    if (channel.readLatch != null) {
+                    	channel.readLatch.countDown();
+                    	continue;
+                    }
+                    
                     // 交给线程池
                     try {
                         SocketProcessor sp = new SocketProcessor(channel);

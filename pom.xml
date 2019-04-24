@@ -35,6 +35,6 @@
   <modules>
     <module>rxtomcat-utils</module>
     <module>rxtomcat-net</module>
-<!--     <module>rxtomcat-http</module> -->
+    <module>rxtomcat-http</module>
   </modules>
 </project>
