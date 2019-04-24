@@ -27,3 +27,12 @@ NIO>
 
  - 简单实现 Digester 解析 xml 的功能
 
+## rxtomcat-http
+
+ - 实现请求头和请求参数的解析
+ - 实现请求体的模拟阻塞读取
+ - 实现响应体的 chunked 传输编码以及模拟阻塞发送
+ 
+**测试**
+
+运行 TestHttpProcessor 的 main 方法，发送 http 请求测试
