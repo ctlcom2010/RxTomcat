@@ -138,7 +138,7 @@ public class HttpProcessor implements Processor, ActionHook {
             outBuffer.setBodyFilter(new ChunkedFilter());
         }
         
-        response.addHeader("Server", ServerInfo.serverInfo);
+        response.addHeader("Server", "RxTomcat/1.0");
         
         // 3. 将状态行写入缓冲区
         outBuffer.writeStatus();

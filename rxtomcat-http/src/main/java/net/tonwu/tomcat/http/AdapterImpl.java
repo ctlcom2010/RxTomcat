@@ -23,7 +23,7 @@ public class AdapterImpl implements Adapter {
     	rawReq.doRead();
     	
         StringBuilder content = new StringBuilder();
-        content.append("Server version: " + ServerInfo.serverInfo + "\r\n");
+        content.append("Server version: " + "RxTomcat/1.1" + "\r\n");
         content.append("OS Name:        " + System.getProperty("os.name") + "\r\n");
         content.append("OS Version:     " + System.getProperty("os.version") + "\r\n");
         content.append("Architecture:   " + System.getProperty("os.arch") + "\r\n");
