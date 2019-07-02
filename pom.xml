@@ -3,38 +3,193 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.tonwu</groupId>
   <artifactId>RxTomcat</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>2.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
+  
+  <scm>
+    <url>https://github.com/tonwu/rxtomcat</url>
+    <connection>scm:git:git://github.com/tonwu/rxtomcat.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/tonwu/rxtomcat.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+  
   <properties>
-    <java-version>1.7</java-version>
-    <slf4j.version>1.7.25</slf4j.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <logback.version>1.2.3</logback.version>
+    <junit.version>4.12</junit.version>
+    <servlet.version>2.5</servlet.version>
   </properties>
 
-  <build>
-    <finalName>${project.artifactId}</finalName>
-
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.7.0</version>
-        <configuration>
-          <source>${java-version}</source>
-          <target>${java-version}</target>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>3.0.2</version>
-      </plugin>
-    </plugins>
-  </build>
   <modules>
     <module>rxtomcat-utils</module>
     <module>rxtomcat-net</module>
     <module>rxtomcat-http</module>
+    <module>rxtomcat-container</module>
+    <module>rxtomcat-ha</module>
+    <module>rxtomcat-bootstrap</module>
   </modules>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+<!--     <dependency> -->
+<!--       <groupId>ch.qos.logback</groupId> -->
+<!--       <artifactId>logback-classic</artifactId> -->
+<!--       <version>${logback.version}</version> -->
+<!--     </dependency> -->
+  </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>servlet-api</artifactId>
+        <version>${servlet.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.0.0</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.6.0</version>
+          <configuration>
+            <source>1.7</source>
+            <target>1.7</target>
+            <debug>true</debug>
+            <encoding>UTF-8</encoding>
+            <excludes>
+              <exclude>**/package-info.java</exclude>
+            </excludes>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>2.8.2</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>2.5.2</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.0.1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-site-plugin</artifactId>
+          <version>3.6</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.19.1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-jar-plugin</artifactId>
+          <version>2.6</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>2.10.4</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>2.10</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.5.3</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>3.0.1</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>findbugs-maven-plugin</artifactId>
+          <version>3.0.4</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.felix</groupId>
+          <artifactId>maven-bundle-plugin</artifactId>
+          <version>2.5.4</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <finalName>${project.artifactId}</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <configuration>
+          <aggregate>true</aggregate> <!-- 多模块时配置为true -->
+          <charset>UTF-8</charset>
+          <encoding>UTF-8</encoding>
+          <docencoding>UTF-8</docencoding>
+          <additionalparam>-Xdoclint:none</additionalparam> <!-- jdk8 关闭规范化检查 -->
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <configuration>
+          <useReleaseProfile>false</useReleaseProfile>
+          <autoVersionSubmodules>true</autoVersionSubmodules>
+          <allowTimestampedSnapshots>false</allowTimestampedSnapshots>
+          <tagNameFormat>rxtomcat-v@{project.version}</tagNameFormat>
+        </configuration>
+      </plugin>
+      
+    </plugins>
+  </build>
 </project>

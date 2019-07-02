@@ -1,0 +1,19 @@
+rxtomcat-v2.0.0
+ + 重构并添加注释
+ + 使用 logback+slf4j 管理日志
+ + 实现简单的 Servlet 容器
+ + 实现 Pipeline 和 Valve 的管道处理模型，以及容器 Lifecycle 生命周期的设计
+ + 实现 DefaultServlet 静态资源的处理和缓存
+ + 实现根据 web.xml 部署应用，提取 Servlet 和 Filter 及其配置的映射
+ + 实现打破双亲委托的类加载器 Loader - 从 WEB-INF/classes 和 WEB-INF/lib 加载类，以及 class 文件**热加载**的功能
+ + 实现 Servlet 的三种 URL 路由规则，以及规范中的 Cookie, HttpSession, FilterChain, HttpServletRequest, HttpServletResponse
+ + 实现 Session 以及它的管理器 Manager
+ + 实现一个测试使用的 Web 应用 test
+ + 添加能够响应并显示错误信息的 ErrorReportValve
+
+rxtomcat-v1.1
+ + 使用信号量控制总连接数
+
+rxtomcat-v1.0
+ + 实现 NIO 模型的核心处理流程
+ + 实现 Digester 解析 xml 的功能

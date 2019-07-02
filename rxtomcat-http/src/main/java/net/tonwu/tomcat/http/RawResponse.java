@@ -1,14 +1,35 @@
+/**
+ * Copyright 2019 tonwu.net - 顿悟源码
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.tonwu.tomcat.http;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 
 import net.tonwu.tomcat.http.ActionHook.ActionCode;
 
-public class RawResponse {
+/**
+ * 原始的 Http 响应对象
+ * 
+ * @author tonwu.net
+ */
+public class RawResponse  implements Recyclable {
     
 	/** 状态行和响应头域是否已经写入到发送缓冲区中 */
-	private boolean commited = false;
+	private boolean committed = false;
 	
 	private int status = 200;
 	private String message;
@@ -30,9 +51,14 @@ public class RawResponse {
                 hook.action(action, param);
         }
     }
-    private OutputBuffer outBuffer;
-    public void doWrite(byte[] bytes) throws IOException {
-        outBuffer.doWrite(bytes);
+    /**
+     * 写入响应体数据
+     * 
+     * @param bytes 响应体字节数据
+     * @throws IOException
+     */
+    public void doWrite(ByteBuffer bytes) throws IOException {
+        action(ActionCode.WRITE_BODY, bytes);
     }
     
 	/**
@@ -49,11 +75,11 @@ public class RawResponse {
 	/**
 	 * 状态行和响应头域是否已经写入到发送缓冲区中
 	 */
-	public boolean isCommited() {
-		return commited;
+	public boolean isCommitted() {
+		return committed;
 	}
-	public void setCommited(boolean commited) {
-		this.commited = commited;
+	public void setCommitted(boolean committed) {
+		this.committed = committed;
 	}
 	
 	public HashMap<String, String> headers() {
@@ -74,7 +100,12 @@ public class RawResponse {
 	}
 	
 	public String getContentType() {
-		return contentType;
+	    String retv = contentType;
+        if (retv != null && characterEncoding != null) {
+            retv = retv + ";charset=" + characterEncoding;
+        }
+	    
+		return retv;
 	}
 	
 	public void setContentType(String contentType) {
@@ -101,7 +132,31 @@ public class RawResponse {
 	public void setHook(ActionHook hook) {
 		this.hook = hook;
 	}
-	public void setOutputBuffer(OutputBuffer outBuffer) {
-	    this.outBuffer = outBuffer;
-	}
+	
+    @Override
+    public void recycle() {
+        committed = false;
+        contentType = null;
+        contentLength = -1;
+        headers.clear();
+        status = 200;
+        message = "";
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Response headers: \r\n");
+        builder.append("HTTP/1.1 ");
+        builder.append(status);
+        builder.append(HttpToken.msg(status)).append("\r\n");
+        return builder.toString();
+    }
+    
+    public void reset() throws IllegalStateException {
+        if (committed) {
+            throw new IllegalStateException();
+        }
+        recycle();
+    }
 }

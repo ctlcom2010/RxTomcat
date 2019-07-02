@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<employee firstName="First Name">
+  
+  <last-name>Last Name</last-name>
+  <age>10</age>
+   
+  <address type="home" street="Home Street" city="Home City" />
+  
+  <attr>
+    <key>sex</key>
+    <value>1</value>
+  </attr>
+  
+  <work>
+    <name>work-0</name>
+    <company>work-0-company-0</company>
+    <company>work-0-company-1</company>
+    <company>work-0-company-2</company>
+  </work>
+  
+  <work>
+    <name>work-1</name>
+    <company>work-1-company-0</company>
+    <company>work-1-company-1</company>
+    <company>work-1-company-2</company>
+  </work>
+  
+</employee>

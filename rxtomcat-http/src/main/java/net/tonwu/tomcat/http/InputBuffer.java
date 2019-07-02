@@ -1,28 +1,51 @@
+/**
+ * Copyright 2019 tonwu.net - 顿悟源码
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package net.tonwu.tomcat.http;
 
-import static net.tonwu.tomcat.http.Constants.COLON;
-import static net.tonwu.tomcat.http.Constants.CR;
-import static net.tonwu.tomcat.http.Constants.LF;
-import static net.tonwu.tomcat.http.Constants.QUESTION;
-import static net.tonwu.tomcat.http.Constants.SP;
+import static net.tonwu.tomcat.http.HttpToken.COLON;
+import static net.tonwu.tomcat.http.HttpToken.CR;
+import static net.tonwu.tomcat.http.HttpToken.LF;
+import static net.tonwu.tomcat.http.HttpToken.QUESTION;
+import static net.tonwu.tomcat.http.HttpToken.SP;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.util.concurrent.CountDownLatch;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.tonwu.tomcat.net.NioChannel;
 
 /**
  * 使用有限状态机解析 HTTP 协议请求行和请求体
  * 
- * @author wskwbog
+ * @author tonwu.net
  */
-public class InputBuffer {
-    // 请求头解析状态
-    private ParseStatus status;
-
+public class InputBuffer implements Recyclable, BufferHolder {
+    final Logger log = LoggerFactory.getLogger(InputBuffer.class);
+    
+    /** 当前解析状态 */
+    private ParseStatus status = ParseStatus.METHOD;
+    /**
+     * 请求头解析状态
+     * @author tonwu.net
+     */
     public enum ParseStatus {
         METHOD, // 解析请求方法
         URI, // 解析请求 URI
@@ -36,24 +59,36 @@ public class InputBuffer {
 
     /** 正在解析请求头域 */
     private boolean parsingHeader = true;
-    private int maxHeaderSize = 8192;
+    private int maxHeaderSize = 8192; // 请求头最大大小 k
 
-    private BodyFilter bodyFilter;
-    private NioChannel socket;
+    private BodyCodec codec;
     private RawRequest request;
 
-    private byte[] headerBuffer; // 原始字节数据
-    private int pos; // 当前可读位置
-    private int lim; // 最大可读位置
-    private int end; // 请求头信息在字节数组中结束的位置
-
-    public InputBuffer() {
-        status = ParseStatus.METHOD;
+    private NioChannel socket;
+    
+    /** byteBuffer 引用的是 NioChannel 内部的  readbuff */
+    private ByteBuffer byteBuffer;
+    
+//  boolean swallowInput
+    
+    public InputBuffer(RawRequest request) {
+        this.request = request;
     }
 
+    public void setSocket(NioChannel socket) {
+        this.socket = socket;
+        byteBuffer = socket.getReadBuffer();
+        byteBuffer.position(0).limit(0);
+    }
+    
+    /**
+     * 请求头信息在字节数组中结束的位置，即请求体数据开始的位置
+     * Request Header End
+     */
+    private int rhend;
+    
     private StringBuilder sb = new StringBuilder();
-
-    public String takeString() {
+    private String takeString() {
         String retv = sb.toString();
         sb.setLength(0);
         return retv;
@@ -62,21 +97,22 @@ public class InputBuffer {
     /**
      * 使用状态机的方法，遍历字节解析请求头（解析时没有进行严谨性校验）
      * 
-     * @param request
      * @return true - 读取完成，false - 读取到部分请求头
      * @throws IOException
      */
     public boolean parseRequestLineAndHeaders() throws IOException {
+        log.debug("解析请求行和请求 Headers");
+        
         String headerName = null;
         do {
-            if (pos >= lim) {
-                if (!readIfNeed(false)) {
+            // 缓冲区是否有数据可读
+            if (byteBuffer.position() >= byteBuffer.limit()) {
+                if (!fill(false)) {
                     return false; // 请求头不完整
                 }
             }
-
-            byte chr = headerBuffer[pos++];
-
+            // 状态机解析请求头，这里直接存储字符串，Tomcat 是在使用时才转字符串
+            byte chr = byteBuffer.get();
             switch (status) {
             case METHOD:
                 if (chr == SP) {
@@ -93,6 +129,7 @@ public class InputBuffer {
                     sb.setLength(0);
                     if (chr == QUESTION) {
                         status = ParseStatus.QUERY;
+                        request.setQueryStartPos(byteBuffer.position());
                     } else {
                         status = ParseStatus.VERSION;
                     }
@@ -102,12 +139,14 @@ public class InputBuffer {
                 break;
             case QUERY: // 查询字符串特殊字符会被编码
                 if (chr == SP) {
+                    // 获取实际查询字符串的字节数据视图
+                    int queryEndPos = byteBuffer.position();
+                    ByteBuffer temp = byteBuffer.duplicate();
+                    temp.position(request.getQueryStartPos()).limit(queryEndPos);
+                    request.setQuery(temp.duplicate());
+                    request.getQuery().mark();
+                    
                     status = ParseStatus.VERSION;
-                } else {
-                    if (request.getQuery() == null) {
-                        request.setQuery(ByteBuffer.allocate(512));
-                    }
-                    request.getQuery().put(chr);
                 }
                 break;
             case VERSION:
@@ -141,9 +180,11 @@ public class InputBuffer {
             case HEADER_END:
                 if (chr == CR) {
                 } else if (chr == LF) {
+                    // 请求头解析完毕
                     status = ParseStatus.DONE;
                     parsingHeader = false;
-                    end = pos;
+                    // 记录请求头数据在缓冲区结束的位置
+                    rhend = byteBuffer.position();
                 } else {
                     sb.append((char) chr);
                     status = ParseStatus.HEADER_NAME;
@@ -152,133 +193,165 @@ public class InputBuffer {
             default:
                 break;
             }
-
         } while (status != ParseStatus.DONE);
+        
+        log.debug("请求头部数据读取并解析完毕\r\n======Request======\r\n{}\r\n===================", request);
+        
         return true;
     }
-
-    /**
-     * GET 请求参数在 URL 上直接能读取，而 POST 请求参数，在请求体中，通常有 chunked 和 identity 两种编码方式
-     * 
-     * @param len
-     * @param offset
-     * @throws IOException
-     */
-    public int doRead(byte[] body) throws IOException {
-        int read = bodyFilter.doRead();
-        if (read > 0) {
-            System.arraycopy(headerBuffer, pos, body, 0, read);
-        }
-        pos = lim;
-        return read;
-    }
-
-    public int readBody() throws IOException {
-        if (pos >= lim) {
-            if (!readIfNeed(true)) {
-                return -1;
-            }
-        }
-        int length = lim - pos;
-        return length;
-    }
-
+    
     /**
      * 从通道读取字节
      * 
+     * @param block true 模拟阻塞读，false 非阻塞读
      * @return true - 有数据读取，false - 无数据可读
-     * @throws IOException
-     *             - 通道已经关闭，继续读取时发生
-     * @throws IllegalArgumentException
-     *             - 请求头太大，超过 8192KB
-     * @throws EOFException
-     *             - 连接被关闭
+     * @throws IOException 通道已经关闭，继续读取时发生
+     * @throws IllegalArgumentException 请求头太大，超过 8192KB
+     * @throws EOFException 连接被关闭
      */
-    public boolean readIfNeed(boolean block) throws IOException {
-        ByteBuffer bb = socket.readBuf();
-        bb.clear();
-        int n = -1;
-        if (block) {
-        	while (n == 0) {
-        		n = socket.read(bb);
-                if (n == -1) throw new EOFException();
-                if (n > 0) break;
-        	}
-        	socket.readLatch = new CountDownLatch(1);
-    		// 注册 Pooler 写事件
-    		socket.getPoller().register(socket, SelectionKey.OP_READ);
-    		try {
-    			// 阻塞等待可写
-				socket.readLatch.await();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-    		socket.readLatch = null;
-        	
+    public boolean fill(boolean block) throws IOException {
+    	if (parsingHeader) {
+    		// 如果正在解析请求头域数据
+    		if (byteBuffer.limit() > maxHeaderSize) {
+    			throw new IllegalArgumentException("请求头太大");
+    		}
+    	} else {
+    		// 这里也把请求头部数据保留在读缓冲区中
+    		// 所以重置 pos 和 limit 的位置，以重复利用请求头数据之后的空间来读取请求体
+    		byteBuffer.limit(rhend).position(rhend);
+    	}
+    	// 记住当前 position 位置
+    	byteBuffer.mark();
+    	// 切换可写模式，并设置最大读取字节数
+    	byteBuffer.limit(byteBuffer.capacity());
+    	// 读取数据
+    	int n = socket.read(byteBuffer, block);
+    	// 切换成可读模式
+    	byteBuffer.limit(byteBuffer.position()).reset();
+    	if (n == -1) {
+            throw new EOFException("EOF，通道被关闭");
+        }
+    	return n > 0;
+    }
+    
+    /**
+     * 模拟阻塞读取请求体数据
+     * 
+     * @param buffHolder 持有读取数据的字节视图，如果参数值为 null，表示不需要数据，单纯的读取
+     * @return 因为是阻塞的，必定会返回一个大于 0 的数字，若返回 -1 连接肯定关闭了
+     * @throws IOException
+     */
+    public int readBody(BufferHolder buffHolder) throws IOException {
+        if (codec != null) {
+            return codec.doRead(this, buffHolder);
         } else {
-            n = socket.read(bb); // 可能返回 0
-            if (n > 0) {
-                if (parsingHeader) {
-                    if (pos + n > maxHeaderSize) {
-                        throw new IllegalArgumentException("请求头太大");
-                    }
-                } else {
-                    pos = end;
-                }
-                bb.flip();
-                bb.get(headerBuffer, pos, n);
-                lim = pos + n;
-            } else if (n == -1) {
-                throw new EOFException("EOF，通道被关闭");
+            return realReadBytes(buffHolder);
+        }
+    }
+    /**
+     * 从底层通道读取数据，并返回一个与结果对应视图 ByteBuffer
+     * 
+     * @param buffHolder 持有读取数据的字节视图，如果参数值为 null，表示不需要数据，单纯的读取
+     * @return 返回实际读取的数据大小，-1 表示连接被关闭
+     * @throws IOException
+     */
+    public int realReadBytes(BufferHolder buffHolder) throws IOException {
+        if (byteBuffer.position() >= byteBuffer.limit()) {
+            if(!fill(true)) {
+                buffHolder.setByteBuffer(null);
+                return -1;
             }
         }
-        return n > 0;
-    }
-
-    public void setSocket(NioChannel socket) {
-        this.socket = socket;
-        if (headerBuffer == null) {
-            headerBuffer = new byte[maxHeaderSize + socket.readBuf().capacity()];
+        int length = byteBuffer.remaining();
+        if (buffHolder != null) {
+            // dst 与 byteBuffer 底层共用一个 byte[]
+            buffHolder.setByteBuffer(byteBuffer.duplicate());
         }
+        byteBuffer.position(byteBuffer.limit());
+        return length;
     }
-
-    public void setBodyFilter(BodyFilter body) {
-        this.bodyFilter = body;
-        body.setBuffer(this);
-        body.setRequest(request);
+    
+    private int maxPostSize = 1 * 1024 * 1024;
+    
+    /**
+     * 存储 post 数据，最大 1M
+     */
+    private ByteBuffer body = ByteBuffer.allocate(maxPostSize); // 1MB
+    private ByteBuffer bodyView = null; // 部分请求体数据
+    
+    /**
+     * 解析 GET 和 POST 请求参数
+     */
+    public void readAndParseBody() {
+        request.setParametersParsed(true);
+        // 1. 解析查询参数 GET
+        if (request.getQuery() != null) {
+            request.getQuery().reset();
+            byte[] queryBytes = new byte[request.getQuery().remaining()];
+            request.getQuery().get(queryBytes);
+            parseParameters(queryBytes);
+        }
+        
+        // 2. 解析 post 请求参数并且是以键值对进行传输
+        if (!"POST".contentEquals(request.getMethod()) || 
+                !request.getContentType().contains("application/x-www-form-urlencoded")) {
+            return;
+        }
+        
+        // 3. 读取请求体数据
+        body.clear();
+        try {
+            int len = request.getContentLength();
+            if (len > 0) { // identity 传输编码
+                if (len > maxPostSize) {
+                    request.setParseParamFail(true);
+                    return;
+                }
+                // 循环读取指定数量的字节
+                int n = -1;
+                while (len > 0 && ((n = readBody(this)) >= 0)) {
+                    body.put(bodyView);
+                    len -= n;
+                }
+            } else if ("chunked".equalsIgnoreCase(request.getHeader("transfer-encoding"))){
+                // chunked 传输编码
+                len = 0;
+                int n = 0;
+                while ((n = readBody(this)) >= 0) {
+                    body.put(bodyView);
+                    len += n;
+                    if (len > maxPostSize) { // POST 数据太大了
+                        request.setParseParamFail(true);
+                        return;
+                    }
+                }
+            }
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            request.setParseParamFail(true);
+            return;
+        }
+        
+        // 5. 解析参数
+        body.flip();
+        byte[] post = new byte[body.remaining()];
+        body.get(post);
+        parseParameters(post);
     }
-
-    public void setRequest(RawRequest req) {
-        request = req;
-    }
-
-    public int available() {
-        return lim - end;
-    }
-
+    
     /**
      * 解析请求参数，查询参数，查询参数可以是这样 a=%E5%88%9B+a
      */
-    public void parseParameters(byte[] body) {
-        // 第一步去除 %
-        int len = body.length;
-        for (int i = 0; i < len; i++) {
-            byte b = body[i];
-            if (b == '%') {
-                // 把十六进制字符串替换成 int 值
-                byte b1 = body[i + 1];
-                byte b2 = body[i + 2];
-                // b1 & 0xDF 转为大写字母
-                int digitb1 = (b1 >= 'A') ? ((b1 & 0xDF) - 'A') + 10 : (b1 - '0');
-                int digitb2 = (b2 >= 'A') ? ((b2 & 0xDF) - 'A') + 10 : (b2 - '0');
-                // 转为 int 保存在 i 位置上，把后面两位字节去除
-                body[i] = (byte) (digitb1 << 4 | digitb2); // 相当于 digitb1*16+digitb2
-                System.arraycopy(body, i + 3, body, i + 1, len - i - 3);
-                len -= 2;
-            }
+    private void parseParameters(byte[] body) {
+        String params = new String(body, request.getEncoding());
+        try {
+            // 将形如 "%xy" 的编码，转为正确的字符串
+            params = URLDecoder.decode(params, request.getEncoding().toString());
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
         }
-        // 此时的参数就能使用字符集转为正确的字符串
-        String params = new String(body, 0, len, request.getEncoding());
+        
+        // 参数格式为 "a=1&b=&c=2"
         String[] param = params.split("&");
         if (param != null && param.length > 0) {
             for (String ele : param) {
@@ -288,11 +361,46 @@ public class InputBuffer {
                 try {
                     String[] nv = ele.trim().split("=");
                     String name = nv[0];
-                    String value = nv.length > 1 ? nv[1] : null;
+                    String value = nv.length > 1 ? nv[1] : "";
                     request.getParameters().put(name, value);
                 } catch (Exception ignore) {
                 }
             }
         }
+    }
+
+    public void setBodyCodec(BodyCodec body) {
+        this.codec = body;
+    }
+    public void setRequest(RawRequest req) {
+        request = req;
+    }
+
+    public void end() throws IOException {
+        if (codec != null) {
+            codec.endRead(this);
+        }
+    }
+    
+    @Override
+    public void recycle() {
+        request.recycle();
+        
+        status = ParseStatus.METHOD;
+        parsingHeader = true;
+        byteBuffer.clear();
+        body.clear();
+        codec = null;
+        rhend = 0;
+    }
+
+    // BufferHolder Method
+    @Override
+    public void setByteBuffer(ByteBuffer buffer) {
+        bodyView = buffer;
+    }
+    @Override
+    public ByteBuffer getByteBuffer() {
+        return bodyView;
     }
 }

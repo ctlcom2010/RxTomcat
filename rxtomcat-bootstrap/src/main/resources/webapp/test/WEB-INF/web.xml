@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="WebApp_ID" version="2.5">
+  <display-name>test</display-name>
+  <servlet>
+    <servlet-name>HelloServlet</servlet-name>
+    <servlet-class>net.tonwu.HelloServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>HelloServlet</servlet-name>
+    <url-pattern>/hello/*</url-pattern>
+  </servlet-mapping>
+  <filter>
+    <filter-name>TestFilter</filter-name>
+    <filter-class>net.tonwu.TestFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>TestFilter</filter-name>
+    <url-pattern>/hello/filter/*</url-pattern>
+  </filter-mapping>
+  <servlet>
+    <servlet-name>FileUploadServlet</servlet-name>
+    <servlet-class>net.tonwu.FileUploadServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>FileUploadServlet</servlet-name>
+    <url-pattern>/upload</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>SessionServlet</servlet-name>
+    <servlet-class>net.tonwu.SessionServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>SessionServlet</servlet-name>
+    <url-pattern>/session</url-pattern>
+  </servlet-mapping>
+  <filter>
+    <filter-name>LoginFilter</filter-name>
+    <filter-class>net.tonwu.LoginFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>LoginFilter</filter-name>
+    <url-pattern>/session/*</url-pattern>
+  </filter-mapping>
+  
+  <servlet>
+    <servlet-name>LoginServlet</servlet-name>
+    <servlet-class>net.tonwu.LoginServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>LoginServlet</servlet-name>
+    <url-pattern>/login</url-pattern>
+  </servlet-mapping>
+  
+</web-app>
