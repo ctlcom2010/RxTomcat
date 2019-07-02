@@ -1,6 +1,6 @@
 ## RxTomcat
 
-如果你想看 Tomcat 源码但又无从入手，不妨从这个项目开始，代码量不多，但包含了 Tomcat 的核心处理流程，并且源码中有相当丰富的注释。Tomcat 源码分析的文章，首发于微信公众号「顿悟源码」。
+如果你想看 Tomcat 源码但又无从入手，不妨从这个项目开始，代码量不多，但包含了 Tomcat 的核心处理流程，并且源码中有相当丰富的注释。Tomcat 源码分析的文章，可从微信公众号「顿悟源码」获取。
 
 此项目仅用于学习交流使用。
 
@@ -11,15 +11,15 @@
  - Oracle JDK 8
  - Apache Maven
 
-注意，这只是构建是需要。JDK 7 或 8 足以运行。
+注意，这只是构建是需要，JDK 7 或 8 足以运行。
 
 使用以下命令，构建：
 
 ```
-    mvn clean install
+  mvn clean install
 ```
 
-最终打包版本会生成在 `rxtomcat-bootstrap/target/dist/` 目录中，执行命令是会执行 test 和 生成 javadoc，如要跳过可使用以下命令：
+最终打包版本会生成在 `rxtomcat-bootstrap/target/dist/` 目录中，打包时会执行 test 和 生成 javadoc，如要跳过可使用以下命令：
 
 ```
   mvn clean install -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
