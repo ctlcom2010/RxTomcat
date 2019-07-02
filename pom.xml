@@ -10,7 +10,7 @@
   <scm>
     <url>https://github.com/tonwu/rxtomcat</url>
     <connection>scm:git:git://github.com/tonwu/rxtomcat.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/tonwu/rxtomcat.git</developerConnection>
+    <developerConnection>scm:git:https://wskwbog@github.com/tonwu/rxtomcat.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
   
