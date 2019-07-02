@@ -13,6 +13,13 @@
     <tag>HEAD</tag>
   </scm>
   
+  <distributionManagement>
+    <repository>
+        <id>localRepository</id>
+        <url>file:E:/maven/repository</url>
+    </repository>
+  </distributionManagement>
+  
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
